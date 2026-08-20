@@ -4,9 +4,10 @@ from google import genai
 from google.genai import types
 
 from tools import calculate_expression
+from text_tools import analyze_text
 
 
-# Get API key
+# 1. Get API key
 api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
@@ -16,19 +17,19 @@ if not api_key:
 print("API key found!")
 
 
-# Create Gemini client
+# 2. Create Gemini client
 client = genai.Client(api_key=api_key)
 
 
-# Define calculator tool
+# 3. Define calculator tool
 calculator_tool = types.Tool(
     function_declarations=[
         types.FunctionDeclaration(
             name="calculate_expression",
             description=(
                 "Safely evaluate a mathematical expression. "
-                "Use this tool whenever the user asks for a calculation "
-                "or enters a mathematical expression."
+                "Use this tool whenever the user asks for a "
+                "mathematical calculation."
             ),
             parameters_json_schema={
                 "type": "object",
@@ -36,8 +37,9 @@ calculator_tool = types.Tool(
                     "expression": {
                         "type": "string",
                         "description": (
-                            "A mathematical expression such as "
-                            "21*12, 454-12+22, or (10+5)*3."
+                            "A complete mathematical expression, "
+                            "such as 21*12, 454-12+22, "
+                            "or (10+5)*3."
                         )
                     }
                 },
@@ -48,38 +50,68 @@ calculator_tool = types.Tool(
 )
 
 
-# Create agent
+# 4. Define text analysis tool
+text_tool = types.Tool(
+    function_declarations=[
+        types.FunctionDeclaration(
+            name="analyze_text",
+            description=(
+                "Analyze text and return the number of words "
+                "and characters."
+            ),
+            parameters_json_schema={
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "The text to analyze."
+                    }
+                },
+                "required": ["text"]
+            }
+        )
+    ]
+)
+
+
+# 5. Combine both tools
+tools = [
+    calculator_tool,
+    text_tool
+]
+
+
+# 6. Create the AI agent
 chat = client.chats.create(
     model="gemini-3.6-flash",
     config=types.GenerateContentConfig(
         system_instruction="""
 You are a helpful AI agent.
 
-Use the available calculator tool whenever the user
-asks for a mathematical calculation.
+You have access to two tools:
 
-The calculator can evaluate complete mathematical
-expressions, including:
+1. calculate_expression
+   Use this for mathematical calculations.
 
-21*12
-454-12+22
-2+2*4
-(10+5)*3
+2. analyze_text
+   Use this when the user asks you to analyze text,
+   such as counting words or characters.
 
-Always send the complete mathematical expression
-to the calculator tool.
+Choose the appropriate tool based on the user's request.
 
-After receiving the calculator result, provide
-a clear final answer to the user.
+After receiving a tool result, provide a clear final answer.
 """,
-        tools=[calculator_tool]
+        tools=tools
     )
 )
 
 
-# Start conversation
+# 7. Start the agent
 print("\nAI Agent is ready!")
-print("Type 'exit' to stop.\n")
+print("Available tools:")
+print("- Calculator")
+print("- Text Analyzer")
+print("\nType 'exit' to stop.\n")
 
 
 while True:
@@ -91,11 +123,11 @@ while True:
         break
 
 
-    # Send message to Gemini
+    # 8. Send user request to Gemini
     response = chat.send_message(user_question)
 
 
-    # Look for tool calls
+    # 9. Check for tool calls
     tool_was_used = False
 
     for part in response.candidates[0].content.parts:
@@ -117,32 +149,49 @@ while True:
             )
 
 
-            # Execute calculator
+            # 10. Calculator tool
             if function_call.name == "calculate_expression":
 
                 expression = function_call.args["expression"]
 
                 result = calculate_expression(expression)
 
-                print("Tool result:", result)
+
+            # 11. Text analyzer tool
+            elif function_call.name == "analyze_text":
+
+                text = function_call.args["text"]
+
+                result = analyze_text(text)
 
 
-                # Send result back to Gemini
-                tool_response = types.Part.from_function_response(
-                    name=function_call.name,
-                    response={
-                        "result": result
-                    }
-                )
+            else:
 
-                final_response = chat.send_message(
-                    tool_response
-                )
-
-                print("\nAgent:", final_response.text)
+                result = "Unknown tool"
 
 
-    # No tool required
+            # 12. Show tool result
+            print("Tool result:", result)
+
+
+            # 13. Send result back to Gemini
+            tool_response = types.Part.from_function_response(
+                name=function_call.name,
+                response={
+                    "result": result
+                }
+            )
+
+            final_response = chat.send_message(
+                tool_response
+            )
+
+
+            # 14. Final answer
+            print("\nAgent:", final_response.text)
+
+
+    # 15. No tool required
     if not tool_was_used:
 
         print("\nAgent:", response.text)

@@ -1,5 +1,9 @@
-from tools import calculator
+from tools import calculate_expression
 
-result = calculator(10, 5, "multiply")
 
-print(result)
+expression = "21*12"
+
+result = calculate_expression(expression)
+
+print("Expression:", expression)
+print("Result:", result)
