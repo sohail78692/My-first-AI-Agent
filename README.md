@@ -4,29 +4,30 @@ A beginner-friendly AI agent built with **Python** and the **Google Gemini API**
 
 This project is my hands-on journey into understanding how AI agents work from the ground up. Instead of immediately relying on frameworks such as LangChain or LangGraph, I am first building the core agent architecture myself.
 
-The project started as a simple Gemini experiment and is gradually evolving into a **multi-tool AI agent capable of reasoning, selecting tools, executing actions, processing results, and continuing the agent loop**.
+The project started as a simple Gemini API experiment and has gradually evolved into a **multi-tool AI agent with sequential tool calling, conversation context, and persistent memory**.
 
 ---
 
-## 🚀 Project Overview
+# 🚀 Project Overview
 
 The goal of this project is to understand the fundamental architecture behind AI agents.
 
 The agent can:
 
-- Understand a user's request
-- Decide whether a tool is needed
-- Select the appropriate tool
-- Generate arguments for the tool
-- Execute Python tools
-- Receive tool results
-- Reason over tool results
-- Use multiple tools sequentially
-- Continue the agent loop when another action is required
-- Maintain short-term conversation context
-- Generate a final response
+- 🧠 Understand a user's request
+- 🔧 Decide whether a tool is needed
+- 🎯 Select the appropriate tool
+- 📦 Generate arguments for the selected tool
+- ⚙️ Execute Python tools
+- 👀 Receive tool results
+- 🧠 Reason over tool results
+- 🔄 Use multiple tools sequentially
+- 💬 Maintain short-term conversation context
+- 💾 Store information in persistent memory
+- 🔎 Retrieve previously stored information
+- 💬 Generate a final natural-language response
 
-### Current Agent Flow
+## Current Agent Flow
 
 ```text
 User
@@ -56,19 +57,26 @@ Another Tool Needed?
 
 ## 🧠 Gemini-Powered AI Agent
 
-Google Gemini acts as the AI brain of the project.
+Google Gemini acts as the AI brain and decision-making component of the project.
 
 The model receives the user's request and decides whether it needs to use one of the available tools.
 
-The agent does not simply calculate or analyze everything itself. Instead, it can decide when an external Python function should perform an action.
+The Python application provides the tools, but Gemini decides which tool should be used.
 
 ---
 
 # 🔧 Multi-Tool Support
 
-The agent currently has two tools.
+The agent currently has **four tools**:
 
-## 🧮 1. Calculator Tool
+1. 🧮 Calculator
+2. 📝 Text Analyzer
+3. 🧠 Remember
+4. 🔎 Recall
+
+---
+
+# 🧮 1. Calculator Tool
 
 The calculator tool evaluates mathematical expressions.
 
@@ -94,7 +102,7 @@ The calculator supports:
 - Negative numbers
 - Operator precedence
 
-### Example
+## Example
 
 ```text
 You: 21*12
@@ -120,7 +128,7 @@ Currently it calculates:
 - Word count
 - Character count
 
-### Example
+## Example
 
 ```text
 You: Analyze this text: AI agents can use multiple tools.
@@ -132,48 +140,74 @@ Tool result:
 {'word_count': 6, 'character_count': 33}
 ```
 
-The agent then sends the tool result back to Gemini so Gemini can create a natural-language response.
+Gemini then receives the result and generates a natural-language response.
 
 ---
 
-# 🤖 AI Tool Selection
+# 🧠 3. Remember Tool
 
-One of the most important features of the project is that the AI chooses the appropriate tool.
+The `remember` tool allows the AI agent to store useful information in persistent memory.
 
-For example:
-
-```text
-User:
-21*12
-```
-
-Gemini recognizes that a calculation is required and chooses:
+The information is stored locally in:
 
 ```text
-calculate_expression
+memory.json
 ```
 
-For:
+## Example
 
 ```text
-Analyze this text: AI agents can use multiple tools.
+You: Remember that my favorite programming language is Python.
+
+Agent decided to use: remember
+
+Arguments:
+{
+    'key': 'favorite_programming_language',
+    'value': 'Python'
+}
+
+Tool result:
+{
+    'success': True,
+    'message': 'Remembered favorite_programming_language.'
+}
+
+Agent: I've remembered that your favorite programming language is Python!
 ```
 
-Gemini chooses:
+The memory is saved to the local `memory.json` file.
+
+---
+
+# 🔎 4. Recall Tool
+
+The `recall` tool retrieves previously stored information from persistent memory.
+
+## Example
 
 ```text
-analyze_text
+You: What is my favorite programming language?
+
+Agent decided to use: recall
+
+Tool result:
+{
+    'found': True,
+    'key': 'favorite_programming_language',
+    'value': 'Python'
+}
+
+Agent: Your favorite programming language is Python.
 ```
 
-The Python program does not manually choose the tool based on the user's input.
-
-The AI makes the tool-selection decision.
+The important part is that the information can still be retrieved after restarting the program.
 
 ---
 
 # 🔄 Sequential Tool Calls
 
-The agent can use more than one tool for a single user request.
+The agent can use multiple tools for a single user request.
 
 For example:
 
@@ -199,9 +233,7 @@ Gemini reasons again
      ↓
 calculate_expression
      ↓
-5 * 10
-     ↓
-50
+5 × 10 = 50
      ↓
 Gemini
      ↓
@@ -212,19 +244,21 @@ Actual tool execution:
 
 ```text
 Agent decided to use: analyze_text
-Arguments: {'text': 'AI agents can use tools.'}
+Arguments:
+{'text': 'AI agents can use tools.'}
 
 Tool result:
 {'word_count': 5, 'character_count': 24}
 
 Agent decided to use: calculate_expression
-Arguments: {'expression': '5 * 10'}
+Arguments:
+{'expression': '5 * 10'}
 
 Tool result:
 50
 ```
 
-This demonstrates a real agentic workflow:
+This demonstrates the core agentic workflow:
 
 ```text
 Think
@@ -277,15 +311,15 @@ Tool call?
       └── NO → Final Answer
 ```
 
-This is an important difference between a simple chatbot and an agent.
+This is an important difference between a simple chatbot and an AI agent.
 
-A chatbot may simply:
+A simple chatbot may work like:
 
 ```text
 User → AI → Answer
 ```
 
-Our agent can:
+Our agent can work like:
 
 ```text
 User
@@ -319,9 +353,9 @@ tool_executor.py
 
 file.
 
-The agent does not need to contain the implementation details of every tool.
+Instead of placing every tool's implementation directly inside the agent, the agent sends the requested tool to the central executor.
 
-Instead:
+Architecture:
 
 ```text
 Gemini
@@ -330,14 +364,14 @@ Function Call
  ↓
 tool_executor.py
  ↓
-Select requested tool
+Select Requested Tool
  ↓
-Execute Python function
+Execute Python Function
  ↓
-Return result
+Return Result
 ```
 
-Current architecture:
+Current structure:
 
 ```text
                  Gemini
@@ -349,21 +383,19 @@ Current architecture:
             │ Tool Executor │
             └───────┬───────┘
                     │
-          ┌─────────┴─────────┐
-          ▼                   ▼
-   Calculator            Text Analyzer
-          │                   │
-          └─────────┬─────────┘
-                    ▼
-               Tool Result
-                    │
-                    ▼
-                  Gemini
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+   Calculator    Text        Memory
+                 Analyzer     Tools
+                              │
+                         ┌────┴────┐
+                         ▼         ▼
+                     remember    recall
 ```
 
-This architecture makes it easier to add more tools later.
+This architecture makes it easier to add additional tools in the future.
 
-For example, future tools could include:
+Possible future tools include:
 
 ```text
 Web Search
@@ -378,9 +410,9 @@ Document Analyzer
 
 ---
 
-# 💬 Conversation Memory
+# 💬 Short-Term Conversation Memory
 
-The agent currently supports **short-term conversation memory** during an active session.
+The agent maintains **short-term conversation context** during an active session.
 
 For example:
 
@@ -396,23 +428,100 @@ Agent: Your name is Sohail.
 
 This works because the same Gemini chat session is maintained while the program is running.
 
-### Current limitation
+## Current limitation
 
-This memory only exists during the current program session.
+Short-term conversation context only exists during the active program session.
 
 If the program is closed:
 
 ```text
-Program running
+Program Running
  ↓
-Conversation history
+Conversation History
  ↓
-Program closes
+Program Closes
  ↓
-Conversation context is lost
+Conversation Context Is Lost
 ```
 
-Persistent memory is planned for a future version.
+For information that needs to survive a restart, the project now uses persistent memory.
+
+---
+
+# 💾 Persistent Memory
+
+The agent can store and retrieve information even after the program is closed and restarted.
+
+Persistent memory is currently implemented using a local JSON file:
+
+```text
+memory.json
+```
+
+The two memory tools are:
+
+```text
+remember
+recall
+```
+
+## Persistent Memory Flow
+
+```text
+User
+ ↓
+Gemini
+ ↓
+remember
+ ↓
+memory.py
+ ↓
+memory.json
+```
+
+Later:
+
+```text
+User
+ ↓
+Gemini
+ ↓
+recall
+ ↓
+memory.py
+ ↓
+memory.json
+ ↓
+Stored Information
+ ↓
+Gemini
+ ↓
+Final Answer
+```
+
+## Persistence Test
+
+The system has been tested by:
+
+```text
+Session 1
+ ↓
+Remember information
+ ↓
+Save to memory.json
+ ↓
+Close program
+ ↓
+Restart program
+ ↓
+Ask about stored information
+ ↓
+recall
+ ↓
+Information recovered
+```
+
+This confirms that the memory survives a program restart.
 
 ---
 
@@ -431,13 +540,21 @@ Persistent memory is planned for a future version.
                             │
                      Tool Selection
                             │
-              ┌─────────────┴─────────────┐
-              ▼                           ▼
-      ┌───────────────┐          ┌────────────────┐
-      │  Calculator   │          │ Text Analyzer  │
-      └───────┬───────┘          └───────┬────────┘
-              │                           │
-              └─────────────┬─────────────┘
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+┌───────────────┐   ┌────────────────┐   ┌───────────────┐
+│  Calculator   │   │ Text Analyzer  │   │    Memory     │
+└───────┬───────┘   └───────┬────────┘   └───────┬───────┘
+        │                   │                    │
+        │                   │              ┌─────┴─────┐
+        │                   │              ▼           ▼
+        │                   │          remember      recall
+        │                   │              │           │
+        │                   │              └─────┬─────┘
+        │                   │                    ▼
+        │                   │              memory.json
+        │                   │
+        └───────────────────┼────────────────────┘
                             ▼
                     ┌───────────────┐
                     │ Tool Executor │
@@ -479,11 +596,13 @@ My-first-AI-Agent/
 ├── tools.py
 ├── text_tools.py
 ├── tool_executor.py
+├── memory.py
 │
 ├── test_key.py
 ├── test_tool.py
 ├── test_text_tool.py
 ├── test_tool_executor.py
+├── test_memory.py
 │
 ├── .gitignore
 ├── README.md
@@ -494,16 +613,18 @@ My-first-AI-Agent/
 
 | File | Description |
 |---|---|
-| `agent.py` | Main multi-tool agent |
+| `agent.py` | Original multi-tool agent |
 | `agent_loop.py` | Local simulated agent-loop experiment |
 | `agent_loop_gemini.py` | Gemini-powered reusable agent loop |
 | `tools.py` | Safe mathematical expression calculator |
 | `text_tools.py` | Text analysis tool |
 | `tool_executor.py` | Central tool execution layer |
+| `memory.py` | Persistent memory functions |
 | `test_key.py` | Tests Gemini API connectivity |
 | `test_tool.py` | Tests calculator functionality |
 | `test_text_tool.py` | Tests text analyzer functionality |
 | `test_tool_executor.py` | Tests the centralized tool executor |
+| `test_memory.py` | Tests persistent memory |
 | `.gitignore` | Prevents unwanted files and secrets from being committed |
 | `README.md` | Project documentation |
 | `LICENSE` | MIT License |
@@ -515,6 +636,7 @@ My-first-AI-Agent/
 - **Python**
 - **Google Gemini API**
 - **Google GenAI Python SDK**
+- **JSON**
 - **Git**
 - **GitHub**
 
@@ -612,6 +734,13 @@ You should see:
 API key found!
 
 AI Agent is ready!
+
+Available tools:
+- Calculator
+- Text Analyzer
+- Remember
+- Recall
+
 Type 'exit' to stop.
 
 You:
@@ -655,6 +784,49 @@ Agent: Here is the analysis of the text:
 
 ---
 
+## Remember
+
+```text
+You: Remember that my favorite programming language is Python.
+
+Agent decided to use: remember
+
+Arguments:
+{
+    'key': 'favorite_programming_language',
+    'value': 'Python'
+}
+
+Tool result:
+{
+    'success': True,
+    'message': 'Remembered favorite_programming_language.'
+}
+
+Agent: I've remembered that your favorite programming language is Python!
+```
+
+---
+
+## Recall
+
+```text
+You: What is my favorite programming language?
+
+Agent decided to use: recall
+
+Tool result:
+{
+    'found': True,
+    'key': 'favorite_programming_language',
+    'value': 'Python'
+}
+
+Agent: Your favorite programming language is Python.
+```
+
+---
+
 ## Multiple Tool Calls
 
 ```text
@@ -674,7 +846,7 @@ Tool result:
 50
 ```
 
-The agent then produces a final response based on both tool results.
+The agent then generates a final response using both tool results.
 
 ---
 
@@ -739,7 +911,19 @@ Run:
 python test_tool_executor.py
 ```
 
-This verifies that the central tool executor can correctly route requests to the appropriate Python tool.
+This verifies that the central tool executor can correctly route requests to the appropriate Python tools.
+
+---
+
+## Test Persistent Memory
+
+Run:
+
+```bash
+python test_memory.py
+```
+
+This verifies that information can be saved and retrieved using the persistent memory system.
 
 ---
 
@@ -755,7 +939,7 @@ GEMINI_API_KEY
 
 as an environment variable.
 
-The `.gitignore` file includes common secret and Python-generated files:
+The `.gitignore` file includes:
 
 ```gitignore
 .env
@@ -763,16 +947,20 @@ The `.gitignore` file includes common secret and Python-generated files:
 venv/
 __pycache__/
 *.pyc
+memory.json
 ```
 
-### If an API key is accidentally exposed
+`memory.json` is excluded because it may contain user-specific information.
+
+## If an API Key Is Accidentally Exposed
 
 If a real API key is accidentally pushed to GitHub:
 
-1. Revoke the exposed key.
+1. Revoke the exposed API key.
 2. Create a new API key.
 3. Update the environment variable.
-4. Make sure the new key is not committed to the repository.
+4. Make sure the new key is not committed.
+5. Remove the exposed secret from the repository history if necessary.
 
 ---
 
@@ -780,7 +968,7 @@ If a real API key is accidentally pushed to GitHub:
 
 This project is being developed as a practical way to understand AI agents.
 
-Topics explored so far include:
+Topics explored so far:
 
 - AI agents
 - Large Language Models
@@ -795,6 +983,9 @@ Topics explored so far include:
 - Agent loops
 - Sequential tool calls
 - Conversation state
+- Persistent memory
+- Memory retrieval
+- JSON-based storage
 - API integration
 - API error handling
 - API rate limits
@@ -824,20 +1015,27 @@ Topics explored so far include:
 - [x] Add multiple-tool support
 - [x] Create centralized tool executor
 - [x] Build reusable agent loop
-- [x] Connect the reusable loop to Gemini
+- [x] Connect reusable agent loop to Gemini
 - [x] Support sequential tool calls
 - [x] Test short-term conversation memory
-- [x] Push the project to GitHub
+- [x] Add persistent memory
+- [x] Create `remember` memory tool
+- [x] Create `recall` memory tool
+- [x] Store memory in JSON
+- [x] Retrieve memory after restarting the program
+- [x] Exclude `memory.json` from GitHub
+- [x] Push project to GitHub
 
 ---
 
 ## 🔨 Next Steps
 
-- [ ] Add persistent memory
-- [ ] Store useful information between sessions
-- [ ] Build memory retrieval
-- [ ] Improve memory management
-- [ ] Add better error handling
+- [ ] Improve persistent memory structure
+- [ ] Support multiple stored memories
+- [ ] Improve memory search and retrieval
+- [ ] Add memory categories
+- [ ] Add better memory management
+- [ ] Improve agent error handling
 - [ ] Add more useful tools
 - [ ] Add web search
 - [ ] Add document reading
@@ -880,10 +1078,12 @@ Tool Execution
     ↓
 Further Reasoning
     ↓
+Memory
+    ↓
 Final Answer
 ```
 
-After understanding these fundamentals, frameworks such as **LangChain** and **LangGraph** can be explored to understand how they simplify and extend AI-agent development.
+The project is intentionally being built from the fundamentals before moving to higher-level AI-agent frameworks.
 
 ---
 
@@ -891,12 +1091,14 @@ After understanding these fundamentals, frameworks such as **LangChain** and **L
 
 This project intentionally starts without an agent framework.
 
-The purpose is to understand the fundamentals before using higher-level frameworks.
+The purpose is to understand the fundamentals before using higher-level frameworks such as LangChain or LangGraph.
 
 Instead of immediately writing:
 
 ```text
-Framework → Agent
+Framework
+   ↓
+Agent
 ```
 
 the project first explores:
@@ -914,7 +1116,9 @@ Tool Result
  ↓
 Agent Loop
  ↓
-Memory
+Conversation Context
+ ↓
+Persistent Memory
 ```
 
 Once these concepts are understood, frameworks such as LangChain and LangGraph will be easier to understand.
@@ -935,10 +1139,12 @@ It has now evolved into a working multi-tool agent capable of:
 - Using multiple tools
 - Performing sequential tool calls
 - Maintaining short-term conversation context
-- Returning tool results to Gemini
+- Storing persistent information
+- Retrieving persistent information
+- Surviving program restarts
 - Generating final responses
 
-The architecture and features will continue to evolve as new AI-agent concepts are learned.
+The architecture and features will continue to evolve as new AI-agent concepts are learned and implemented.
 
 ---
 
