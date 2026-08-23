@@ -27,7 +27,7 @@ client = genai.Client(api_key=api_key)
 
 
 # ============================================================
-# 3. Define Calculator Tool
+# 3. Calculator Tool
 # ============================================================
 
 calculator_tool = types.Tool(
@@ -59,7 +59,7 @@ calculator_tool = types.Tool(
 
 
 # ============================================================
-# 4. Define Text Analyzer Tool
+# 4. Text Analyzer Tool
 # ============================================================
 
 text_tool = types.Tool(
@@ -86,7 +86,7 @@ text_tool = types.Tool(
 
 
 # ============================================================
-# 5. Define Persistent Memory Tools
+# 5. Persistent Memory Tools
 # ============================================================
 
 memory_tool = types.Tool(
@@ -154,6 +154,24 @@ memory_tool = types.Tool(
                     "key"
                 ]
             }
+        ),
+
+        # ----------------------------------------------------
+        # Get All Memories
+        # ----------------------------------------------------
+
+        types.FunctionDeclaration(
+            name="get_all_memories",
+            description=(
+                "Retrieve all information currently stored "
+                "in persistent memory. Use this when the user "
+                "asks what you remember about them or asks "
+                "for a list of stored memories."
+            ),
+            parameters_json_schema={
+                "type": "object",
+                "properties": {}
+            }
         )
     ]
 )
@@ -171,7 +189,7 @@ chat = client.chats.create(
         system_instruction="""
 You are a helpful AI agent.
 
-You have four tools:
+You have five tools:
 
 1. calculate_expression
    Use this tool for mathematical calculations.
@@ -189,6 +207,10 @@ You have four tools:
    Use this tool when information from persistent memory
    is needed to answer the user's request.
 
+5. get_all_memories
+   Use this tool when the user asks what you remember
+   about them or requests a list of stored memories.
+
 Choose the appropriate tool based on the user's request.
 
 After receiving a tool result, decide whether you need
@@ -196,8 +218,9 @@ another tool or whether you can provide the final answer.
 
 Do not invent memories.
 
-Only use information returned by the recall tool
-when answering questions about stored memories.
+Only use information returned by the recall or
+get_all_memories tools when answering questions about
+stored memories.
 """,
 
         tools=[
@@ -235,7 +258,6 @@ def run_agent(user_message):
                     part.function_call
                 )
 
-
         # ----------------------------------------------------
         # No tool call means Gemini has the final answer
         # ----------------------------------------------------
@@ -243,7 +265,6 @@ def run_agent(user_message):
         if not function_calls:
 
             return response.text
-
 
         # ----------------------------------------------------
         # Execute requested tools
@@ -263,19 +284,16 @@ def run_agent(user_message):
                 function_call.args
             )
 
-
-            # Execute the tool using the central executor
+            # Execute the tool
             result = execute_tool(
                 function_call.name,
                 function_call.args
             )
 
-
             print(
                 "Tool result:",
                 result
             )
-
 
             # ------------------------------------------------
             # Create tool response for Gemini
@@ -292,9 +310,8 @@ def run_agent(user_message):
                 tool_response
             )
 
-
         # ----------------------------------------------------
-        # Send all tool results back to Gemini
+        # Send tool results back to Gemini
         # ----------------------------------------------------
 
         response = chat.send_message(
@@ -313,6 +330,7 @@ print("- Calculator")
 print("- Text Analyzer")
 print("- Remember")
 print("- Recall")
+print("- Get All Memories")
 
 print("\nType 'exit' to stop.\n")
 
@@ -320,7 +338,6 @@ print("\nType 'exit' to stop.\n")
 while True:
 
     user_message = input("You: ")
-
 
     # --------------------------------------------------------
     # Exit
@@ -331,7 +348,6 @@ while True:
         print("Agent: Goodbye! 👋")
 
         break
-
 
     # --------------------------------------------------------
     # Run agent
@@ -347,7 +363,6 @@ while True:
             "\nAgent:",
             answer
         )
-
 
     except Exception as error:
 

@@ -6,21 +6,26 @@ MEMORY_FILE = "memory.json"
 
 
 def load_memory():
-    """Load saved memory from memory.json."""
+    """Load all saved memories."""
 
     if not os.path.exists(MEMORY_FILE):
         return {}
 
     try:
         with open(MEMORY_FILE, "r", encoding="utf-8") as file:
-            return json.load(file)
+            data = json.load(file)
+
+            if isinstance(data, dict):
+                return data
+
+            return {}
 
     except (json.JSONDecodeError, OSError):
         return {}
 
 
 def save_memory(memory):
-    """Save memory to memory.json."""
+    """Save all memories."""
 
     with open(MEMORY_FILE, "w", encoding="utf-8") as file:
         json.dump(
@@ -32,7 +37,7 @@ def save_memory(memory):
 
 
 def remember(key, value):
-    """Store information in persistent memory."""
+    """Store or update a memory."""
 
     memory = load_memory()
 
@@ -42,25 +47,37 @@ def remember(key, value):
 
     return {
         "success": True,
+        "key": key,
+        "value": value,
         "message": f"Remembered {key}."
     }
 
 
 def recall(key):
-    """Retrieve information from persistent memory."""
+    """Retrieve one specific memory."""
 
     memory = load_memory()
 
-    value = memory.get(key)
-
-    if value is None:
+    if key not in memory:
         return {
             "found": False,
+            "key": key,
             "message": f"No memory found for {key}."
         }
 
     return {
         "found": True,
         "key": key,
-        "value": value
+        "value": memory[key]
+    }
+
+
+def get_all_memories():
+    """Return all stored memories."""
+
+    memory = load_memory()
+
+    return {
+        "count": len(memory),
+        "memories": memory
     }

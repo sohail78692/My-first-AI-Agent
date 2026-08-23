@@ -1,12 +1,16 @@
 from tools import calculate_expression
 from text_tools import analyze_text
-from memory import remember, recall
+from memory import remember, recall, get_all_memories
 
 
 def execute_tool(tool_name, arguments):
     """
     Execute a tool requested by the AI agent.
     """
+
+    # ========================================================
+    # Calculator
+    # ========================================================
 
     if tool_name == "calculate_expression":
 
@@ -15,12 +19,20 @@ def execute_tool(tool_name, arguments):
         return calculate_expression(expression)
 
 
+    # ========================================================
+    # Text Analyzer
+    # ========================================================
+
     elif tool_name == "analyze_text":
 
         text = arguments["text"]
 
         return analyze_text(text)
 
+
+    # ========================================================
+    # Remember
+    # ========================================================
 
     elif tool_name == "remember":
 
@@ -30,12 +42,29 @@ def execute_tool(tool_name, arguments):
         return remember(key, value)
 
 
+    # ========================================================
+    # Recall
+    # ========================================================
+
     elif tool_name == "recall":
 
         key = arguments["key"]
 
         return recall(key)
 
+
+    # ========================================================
+    # Get All Memories
+    # ========================================================
+
+    elif tool_name == "get_all_memories":
+
+        return get_all_memories()
+
+
+    # ========================================================
+    # Unknown Tool
+    # ========================================================
 
     else:
 
