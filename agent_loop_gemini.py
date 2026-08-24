@@ -38,8 +38,7 @@ calculator_tool = types.Tool(
             name="calculate_expression",
             description=(
                 "Calculate a mathematical expression. "
-                "Use this tool whenever the user asks "
-                "for a mathematical calculation."
+                "Use this for mathematical calculations."
             ),
             parameters_json_schema={
                 "type": "object",
@@ -170,9 +169,9 @@ web_search_tool = types.Tool(
         types.FunctionDeclaration(
             name="web_search",
             description=(
-                "Search the internet for current or external "
-                "information. Use this when information is "
-                "latest, recent, current, or up-to-date."
+                "Search the internet for current, recent, "
+                "latest, or external information. "
+                "Use this to discover relevant webpages."
             ),
             parameters_json_schema={
                 "type": "object",
@@ -205,10 +204,9 @@ fetch_webpage_tool = types.Tool(
         types.FunctionDeclaration(
             name="fetch_webpage",
             description=(
-                "Fetch and read the contents of a webpage. "
-                "Use this after web_search when you need "
-                "actual information from a search result. "
-                "The URL must be a normal HTTP or HTTPS URL."
+                "Fetch and read the actual contents of a "
+                "webpage. Use this after web_search when "
+                "a useful URL has been found."
             ),
             parameters_json_schema={
                 "type": "object",
@@ -216,14 +214,14 @@ fetch_webpage_tool = types.Tool(
                     "url": {
                         "type": "string",
                         "description": (
-                            "The URL of the webpage to read."
+                            "The webpage URL to read."
                         )
                     },
                     "max_characters": {
                         "type": "integer",
                         "description": (
-                            "Maximum amount of webpage text "
-                            "to retrieve. Usually 5000."
+                            "Maximum webpage content to read. "
+                            "Usually 5000."
                         )
                     }
                 },
@@ -246,7 +244,7 @@ chat = client.chats.create(
         system_instruction="""
 You are a helpful AI agent.
 
-You have seven tools:
+Available tools:
 
 1. calculate_expression
    Use for mathematical calculations.
@@ -256,7 +254,7 @@ You have seven tools:
 
 3. remember
    Use when the user explicitly asks you
-   to remember information.
+   to remember something.
 
 4. recall
    Use to retrieve a specific stored memory.
@@ -266,57 +264,65 @@ You have seven tools:
    about them.
 
 6. web_search
-   Use when the user needs current, recent,
-   latest, or up-to-date information.
+   Use to discover webpages containing current
+   or external information.
 
 7. fetch_webpage
-   Use to read the actual contents of a webpage.
+   Use to read the actual content of a webpage.
 
-WEB RESEARCH WORKFLOW:
+============================================================
+WEB RESEARCH RULES
+============================================================
 
-When the user asks for current or web-based information:
+When the user asks for current, latest, recent,
+or web-based information:
 
-1. Use web_search first.
-2. Look at the search results.
-3. Select the most relevant result.
-4. Use fetch_webpage with that result's URL.
-5. Read the returned webpage content.
-6. Answer the user's question using the
-   information from the webpage.
+STEP 1:
+Use web_search.
 
-Do NOT repeatedly call web_search if you already
-have a useful result.
+STEP 2:
+Look at the search results.
 
-If web_search returns a relevant official source,
-prefer that source over less authoritative sources.
+STEP 3:
+Choose the most relevant result, preferably
+an official or authoritative source.
 
-For example:
+STEP 4:
+Use fetch_webpage on that result's URL.
 
-User:
-"What is the latest Python version?"
+STEP 5:
+Read the returned webpage content.
 
-Correct workflow:
+STEP 6:
+Answer the user using the webpage content.
 
-web_search
-    ↓
-Find Python.org release page
-    ↓
-fetch_webpage
-    ↓
-Read release information
-    ↓
-Answer the user
+IMPORTANT:
 
-Other rules:
+After fetch_webpage returns useful content,
+do NOT perform another web search unless the
+page clearly does not contain enough information.
+
+Once you have enough information, STOP using tools
+and provide the final answer.
+
+Do not repeatedly search for the same question.
+
+If web_search returns no useful results but you
+already know a trustworthy URL from the conversation,
+you may use fetch_webpage directly.
+
+============================================================
+GENERAL RULES
+============================================================
 
 - Use the appropriate tool for the user's request.
 - Do not invent information.
 - Do not invent memories.
-- Only use memory tool results for stored memories.
-- After receiving a tool result, decide whether
-  another tool is actually necessary.
-- If you have enough information, provide the
-  final answer.
+- Only use memory tool results for memory questions.
+- Use current web information when the user asks
+  for current information.
+- Avoid unnecessary tool calls.
+- After obtaining enough information, answer directly.
 """,
 
         tools=[
@@ -349,7 +355,7 @@ def run_agent(user_message):
         tool_round += 1
 
         # ----------------------------------------------------
-        # Prevent endless tool calls
+        # Safety protection
         # ----------------------------------------------------
 
         if tool_round > max_tool_rounds:
@@ -404,7 +410,10 @@ def run_agent(user_message):
             )
 
 
-            # Execute tool
+            # ------------------------------------------------
+            # Execute selected tool
+            # ------------------------------------------------
+
             result = execute_tool(
                 function_call.name,
                 function_call.args
@@ -417,7 +426,10 @@ def run_agent(user_message):
             )
 
 
-            # Send result back to Gemini
+            # ------------------------------------------------
+            # Send tool result back to Gemini
+            # ------------------------------------------------
+
             tool_response = types.Part.from_function_response(
                 name=function_call.name,
                 response={
@@ -466,12 +478,20 @@ while True:
     user_message = input("You: ")
 
 
+    # --------------------------------------------------------
+    # Exit
+    # --------------------------------------------------------
+
     if user_message.lower() == "exit":
 
         print("Agent: Goodbye! 👋")
 
         break
 
+
+    # --------------------------------------------------------
+    # Run agent
+    # --------------------------------------------------------
 
     try:
 
