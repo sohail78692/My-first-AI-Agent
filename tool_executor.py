@@ -1,6 +1,8 @@
 from tools import calculate_expression
 from text_tools import analyze_text
 from memory import remember, recall, get_all_memories
+from web_search import web_search
+from fetch_webpage import fetch_webpage
 
 
 def execute_tool(tool_name, arguments):
@@ -60,6 +62,44 @@ def execute_tool(tool_name, arguments):
     elif tool_name == "get_all_memories":
 
         return get_all_memories()
+
+
+    # ========================================================
+    # Web Search
+    # ========================================================
+
+    elif tool_name == "web_search":
+
+        query = arguments["query"]
+
+        max_results = arguments.get(
+            "max_results",
+            5
+        )
+
+        return web_search(
+            query,
+            max_results
+        )
+
+
+    # ========================================================
+    # Fetch Webpage
+    # ========================================================
+
+    elif tool_name == "fetch_webpage":
+
+        url = arguments["url"]
+
+        max_characters = arguments.get(
+            "max_characters",
+            5000
+        )
+
+        return fetch_webpage(
+            url,
+            max_characters
+        )
 
 
     # ========================================================
