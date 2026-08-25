@@ -271,43 +271,93 @@ Available tools:
    Use to read the actual content of a webpage.
 
 ============================================================
-WEB RESEARCH RULES
+WEB RESEARCH WORKFLOW
 ============================================================
 
 When the user asks for current, latest, recent,
 or web-based information:
 
 STEP 1:
-Use web_search.
+Use web_search to discover relevant sources.
 
 STEP 2:
-Look at the search results.
+Review the search results carefully.
 
 STEP 3:
-Choose the most relevant result, preferably
-an official or authoritative source.
+Choose the BEST source from the results.
+
+SOURCE PRIORITY:
+
+1. Official website of the organization or project
+2. Official documentation
+3. Official release notes or announcements
+4. Government sources
+5. Educational institutions
+6. Major reputable publications
+7. Other trustworthy sources
+8. Blogs, forums, SEO websites, or unknown sources
+
+Do NOT automatically choose the first search result.
+
+Look at both:
+
+- The title
+- The URL
+
+Choose the source that is most authoritative
+and relevant to the user's question.
+
+Examples:
+
+Python questions:
+Prefer python.org.
+
+Microsoft questions:
+Prefer microsoft.com.
+
+Windows questions:
+Prefer microsoft.com.
+
+GitHub questions:
+Prefer github.com.
+
+Google or Gemini questions:
+Prefer official Google documentation.
+
+OpenAI questions:
+Prefer official OpenAI documentation.
+
+JavaScript questions:
+Prefer official documentation such as
+developer.mozilla.org when appropriate.
 
 STEP 4:
-Use fetch_webpage on that result's URL.
+Use fetch_webpage on the chosen URL.
 
 STEP 5:
-Read the returned webpage content.
+Read the webpage content.
 
 STEP 6:
-Answer the user using the webpage content.
+Answer the user using the fetched content.
 
-IMPORTANT:
-
-After fetch_webpage returns useful content,
-do NOT perform another web search.
+============================================================
+WEB SEARCH SAFETY
+============================================================
 
 Do not repeatedly search for the same question.
 
-Once a useful webpage has been fetched,
-use that webpage content to answer.
+After fetch_webpage successfully returns useful
+content, do NOT perform another web_search.
 
-If the webpage does not contain enough information,
-you may use another tool only when necessary.
+Use the webpage content already retrieved.
+
+If the first webpage does not contain enough
+information, you may use another source only
+when genuinely necessary.
+
+If you need another source after fetching a webpage,
+prefer another authoritative source instead of
+repeating the exact same search.
 
 If web_search returns no useful results but you
 already know a trustworthy URL from the conversation,
@@ -325,6 +375,7 @@ GENERAL RULES
   for current information.
 - Avoid unnecessary tool calls.
 - After obtaining enough information, answer directly.
+- Do not call tools when they are not necessary.
 """,
 
         tools=[
@@ -360,10 +411,7 @@ def run_agent(user_message):
     tool_round = 0
 
     # --------------------------------------------------------
-    # Web research state
-    #
-    # Once we successfully fetch useful webpage content,
-    # we block additional web searches for this request.
+    # Track whether useful webpage content was fetched
     # --------------------------------------------------------
 
     webpage_fetched = False
@@ -428,7 +476,7 @@ def run_agent(user_message):
             )
 
             # =================================================
-            # WEB SEARCH PROTECTION
+            # Prevent unnecessary web searches
             # =================================================
 
             if webpage_fetched and tool_name == "web_search":
@@ -470,7 +518,7 @@ def run_agent(user_message):
             )
 
             # =================================================
-            # DETECT SUCCESSFUL WEBPAGE FETCH
+            # Detect successful webpage fetch
             # =================================================
 
             if tool_name == "fetch_webpage":
@@ -549,6 +597,10 @@ print("\nType 'exit' to stop.\n")
 while True:
 
     user_message = input("You: ")
+
+    # --------------------------------------------------------
+    # Ignore empty input
+    # --------------------------------------------------------
 
     if not user_message.strip():
         continue
