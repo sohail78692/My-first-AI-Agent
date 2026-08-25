@@ -299,13 +299,15 @@ Answer the user using the webpage content.
 IMPORTANT:
 
 After fetch_webpage returns useful content,
-do NOT perform another web search unless the
-page clearly does not contain enough information.
-
-Once you have enough information, STOP using tools
-and provide the final answer.
+do NOT perform another web search.
 
 Do not repeatedly search for the same question.
+
+Once a useful webpage has been fetched,
+use that webpage content to answer.
+
+If the webpage does not contain enough information,
+you may use another tool only when necessary.
 
 If web_search returns no useful results but you
 already know a trustworthy URL from the conversation,
@@ -342,13 +344,29 @@ GENERAL RULES
 
 def run_agent(user_message):
 
+    # --------------------------------------------------------
+    # Send initial user message
+    # --------------------------------------------------------
+
     response = chat.send_message(
         user_message
     )
 
+    # --------------------------------------------------------
     # Safety limit
+    # --------------------------------------------------------
+
     max_tool_rounds = 5
     tool_round = 0
+
+    # --------------------------------------------------------
+    # Web research state
+    #
+    # Once we successfully fetch useful webpage content,
+    # we block additional web searches for this request.
+    # --------------------------------------------------------
+
+    webpage_fetched = False
 
     while True:
 
@@ -366,7 +384,6 @@ def run_agent(user_message):
                 "question more specifically."
             )
 
-
         # ----------------------------------------------------
         # Find function calls
         # ----------------------------------------------------
@@ -381,7 +398,6 @@ def run_agent(user_message):
                     part.function_call
                 )
 
-
         # ----------------------------------------------------
         # No function call = final answer
         # ----------------------------------------------------
@@ -389,7 +405,6 @@ def run_agent(user_message):
         if not function_calls:
 
             return response.text
-
 
         # ----------------------------------------------------
         # Execute tools
@@ -399,39 +414,98 @@ def run_agent(user_message):
 
         for function_call in function_calls:
 
+            tool_name = function_call.name
+            tool_args = function_call.args
+
             print(
                 "\nAgent decided to use:",
-                function_call.name
+                tool_name
             )
 
             print(
                 "Arguments:",
-                function_call.args
+                tool_args
             )
 
+            # =================================================
+            # WEB SEARCH PROTECTION
+            # =================================================
 
-            # ------------------------------------------------
-            # Execute selected tool
-            # ------------------------------------------------
+            if webpage_fetched and tool_name == "web_search":
 
-            result = execute_tool(
-                function_call.name,
-                function_call.args
-            )
+                print(
+                    "\nSkipping unnecessary web search "
+                    "because a webpage was already fetched."
+                )
 
+                result = {
+                    "success": False,
+                    "error": (
+                        "A useful webpage has already been "
+                        "fetched for this request. "
+                        "Do not perform another web search. "
+                        "Use the webpage content already "
+                        "provided."
+                    )
+                }
+
+            else:
+
+                # ------------------------------------------------
+                # Execute selected tool
+                # ------------------------------------------------
+
+                result = execute_tool(
+                    tool_name,
+                    tool_args
+                )
+
+            # ----------------------------------------------------
+            # Print tool result
+            # ----------------------------------------------------
 
             print(
                 "Tool result:",
                 result
             )
 
+            # =================================================
+            # DETECT SUCCESSFUL WEBPAGE FETCH
+            # =================================================
+
+            if tool_name == "fetch_webpage":
+
+                if isinstance(result, dict):
+
+                    if result.get("success") is True:
+
+                        content = result.get(
+                            "content",
+                            ""
+                        )
+
+                        if (
+                            isinstance(content, str)
+                            and len(content.strip()) > 100
+                        ):
+
+                            webpage_fetched = True
+
+                            print(
+                                "\nWebpage fetched successfully."
+                            )
+
+                            print(
+                                "Further web searches are "
+                                "blocked for this request."
+                            )
 
             # ------------------------------------------------
             # Send tool result back to Gemini
             # ------------------------------------------------
 
             tool_response = types.Part.from_function_response(
-                name=function_call.name,
+                name=tool_name,
                 response={
                     "result": result
                 }
@@ -440,7 +514,6 @@ def run_agent(user_message):
             tool_responses.append(
                 tool_response
             )
-
 
         # ----------------------------------------------------
         # Continue conversation
@@ -477,6 +550,8 @@ while True:
 
     user_message = input("You: ")
 
+    if not user_message.strip():
+        continue
 
     # --------------------------------------------------------
     # Exit
@@ -487,7 +562,6 @@ while True:
         print("Agent: Goodbye! 👋")
 
         break
-
 
     # --------------------------------------------------------
     # Run agent
