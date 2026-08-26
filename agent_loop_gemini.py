@@ -233,42 +233,107 @@ fetch_webpage_tool = types.Tool(
 
 
 # ============================================================
-# 8. Create Gemini Chat
+# 8. Short-Term Conversation History
 # ============================================================
 
-chat = client.chats.create(
-    model="gemini-3.6-flash",
+MAX_HISTORY_TURNS = 10
 
-    config=types.GenerateContentConfig(
+conversation_history = []
 
-        system_instruction="""
+
+# ============================================================
+# 9. Gemini System Instructions
+# ============================================================
+
+SYSTEM_INSTRUCTION = """
 You are a helpful AI agent.
 
-Available tools:
+You have TWO different types of memory:
+
+============================================================
+SHORT-TERM CONVERSATION MEMORY
+============================================================
+
+Use the current conversation to understand follow-up
+questions and references.
+
+For example:
+
+User:
+What is the latest Python version?
+
+Agent:
+Python 3.14.7.
+
+User:
+When was it released?
+
+The word "it" refers to Python 3.14.7 from the
+previous conversation.
+
+Use recent conversation context to understand:
+
+- Follow-up questions
+- Pronouns such as "it", "that", and "this"
+- References to previous answers
+- Previously discussed topics
+- Multi-step conversations
+
+Short-term conversation context exists only during
+the current agent session.
+
+It is NOT persistent memory.
+
+============================================================
+PERSISTENT MEMORY
+============================================================
+
+Persistent memory is different.
+
+Use:
+
+- remember
+- recall
+- get_all_memories
+
+Only use persistent memory when appropriate.
+
+Do not claim to remember something permanently
+unless the memory tool actually contains it.
+
+============================================================
+AVAILABLE TOOLS
+============================================================
 
 1. calculate_expression
-   Use for mathematical calculations.
+
+Use for mathematical calculations.
 
 2. analyze_text
-   Use for text analysis.
+
+Use for text analysis.
 
 3. remember
-   Use when the user explicitly asks you
-   to remember something.
+
+Use when the user explicitly asks you to remember
+something.
 
 4. recall
-   Use to retrieve a specific stored memory.
+
+Use to retrieve a specific stored memory.
 
 5. get_all_memories
-   Use when the user asks what you remember
-   about them.
+
+Use when the user asks what you remember about them.
 
 6. web_search
-   Use to discover webpages containing current
-   or external information.
+
+Use to discover webpages containing current or
+external information.
 
 7. fetch_webpage
-   Use to read the actual content of a webpage.
+
+Use to read the actual content of a webpage.
 
 ============================================================
 WEB RESEARCH WORKFLOW
@@ -364,36 +429,199 @@ already know a trustworthy URL from the conversation,
 you may use fetch_webpage directly.
 
 ============================================================
+MEMORY SAFETY
+============================================================
+
+IMPORTANT:
+
+Do not use get_all_memories to resolve an ambiguous
+question or guess what the user means.
+
+If the current conversation does not provide enough
+context to understand a reference such as:
+
+- "it"
+- "that"
+- "when was it released?"
+- "what about that?"
+- "when did it come out?"
+
+ask the user for clarification.
+
+Do NOT search persistent memories just to guess what
+the user is referring to.
+
+Persistent memory should only be accessed when:
+
+1. The user explicitly asks what you remember.
+2. The user asks about a specific saved preference
+   or memory.
+3. A stored memory is clearly relevant to the request.
+
+Short-term conversation history should be used for
+follow-up questions when the previous conversation
+provides the necessary context.
+
+If short-term conversation history has been cleared
+and the user asks an ambiguous follow-up question,
+ask for clarification instead of searching persistent
+memory.
+
+Examples:
+
+User:
+What is the latest Python version?
+
+Agent:
+Python 3.14.7.
+
+User:
+When was it released?
+
+Correct:
+Python 3.14.7 was released on August 5, 2026.
+
+---
+
+After /clear:
+
+User:
+When was it released?
+
+Correct behavior:
+Ask which software, product, game, movie, or release
+the user is referring to.
+
+Do NOT search persistent memories to guess.
+
+============================================================
 GENERAL RULES
 ============================================================
 
 - Use the appropriate tool for the user's request.
 - Do not invent information.
 - Do not invent memories.
-- Only use memory tool results for memory questions.
+- Only use memory tools for memory-related requests.
 - Use current web information when the user asks
   for current information.
 - Avoid unnecessary tool calls.
 - After obtaining enough information, answer directly.
 - Do not call tools when they are not necessary.
-""",
-
-        tools=[
-            calculator_tool,
-            text_tool,
-            memory_tool,
-            web_search_tool,
-            fetch_webpage_tool
-        ]
-    )
-)
+"""
 
 
 # ============================================================
-# 9. Agent Loop
+# 10. Create Gemini Chat
+# ============================================================
+
+def create_chat():
+
+    return client.chats.create(
+        model="gemini-3.6-flash",
+
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_INSTRUCTION,
+
+            tools=[
+                calculator_tool,
+                text_tool,
+                memory_tool,
+                web_search_tool,
+                fetch_webpage_tool
+            ]
+        )
+    )
+
+
+chat = create_chat()
+
+
+# ============================================================
+# 11. Add Conversation History
+# ============================================================
+
+def add_to_conversation_history(
+    user_message,
+    agent_response
+):
+
+    conversation_history.append(
+        {
+            "user": user_message,
+            "agent": agent_response
+        }
+    )
+
+    if len(conversation_history) > MAX_HISTORY_TURNS:
+        conversation_history.pop(0)
+
+
+# ============================================================
+# 12. Show Conversation History
+# ============================================================
+
+def show_conversation_history():
+
+    if not conversation_history:
+
+        print(
+            "\nNo conversation history yet."
+        )
+
+        return
+
+    print(
+        "\n===== SHORT-TERM CONVERSATION HISTORY ====="
+    )
+
+    for index, turn in enumerate(
+        conversation_history,
+        start=1
+    ):
+
+        print(
+            f"\nTurn {index}"
+        )
+
+        print(
+            f"You: {turn['user']}"
+        )
+
+        print(
+            f"Agent: {turn['agent']}"
+        )
+
+    print(
+        "\n============================================"
+    )
+
+
+# ============================================================
+# 13. Clear Conversation History
+# ============================================================
+
+def clear_conversation_history():
+
+    global chat
+
+    conversation_history.clear()
+
+    # Create a completely new Gemini chat.
+    # This clears Gemini's short-term context too.
+    chat = create_chat()
+
+    print(
+        "\nShort-term conversation history cleared."
+    )
+
+
+# ============================================================
+# 14. Agent Loop
 # ============================================================
 
 def run_agent(user_message):
+
+    global chat
 
     # --------------------------------------------------------
     # Send initial user message
@@ -426,11 +654,18 @@ def run_agent(user_message):
 
         if tool_round > max_tool_rounds:
 
-            return (
+            answer = (
                 "I reached the maximum number of tool calls "
                 "for this request. Please try asking the "
                 "question more specifically."
             )
+
+            add_to_conversation_history(
+                user_message,
+                answer
+            )
+
+            return answer
 
         # ----------------------------------------------------
         # Find function calls
@@ -452,7 +687,14 @@ def run_agent(user_message):
 
         if not function_calls:
 
-            return response.text
+            answer = response.text
+
+            add_to_conversation_history(
+                user_message,
+                answer
+            )
+
+            return answer
 
         # ----------------------------------------------------
         # Execute tools
@@ -479,7 +721,10 @@ def run_agent(user_message):
             # Prevent unnecessary web searches
             # =================================================
 
-            if webpage_fetched and tool_name == "web_search":
+            if (
+                webpage_fetched
+                and tool_name == "web_search"
+            ):
 
                 print(
                     "\nSkipping unnecessary web search "
@@ -499,18 +744,14 @@ def run_agent(user_message):
 
             else:
 
-                # ------------------------------------------------
-                # Execute selected tool
-                # ------------------------------------------------
-
                 result = execute_tool(
                     tool_name,
                     tool_args
                 )
 
-            # ----------------------------------------------------
+            # ------------------------------------------------
             # Print tool result
-            # ----------------------------------------------------
+            # ------------------------------------------------
 
             print(
                 "Tool result:",
@@ -552,11 +793,13 @@ def run_agent(user_message):
             # Send tool result back to Gemini
             # ------------------------------------------------
 
-            tool_response = types.Part.from_function_response(
-                name=tool_name,
-                response={
-                    "result": result
-                }
+            tool_response = (
+                types.Part.from_function_response(
+                    name=tool_name,
+                    response={
+                        "result": result
+                    }
+                )
             )
 
             tool_responses.append(
@@ -573,7 +816,7 @@ def run_agent(user_message):
 
 
 # ============================================================
-# 10. Start Agent
+# 15. Start Agent
 # ============================================================
 
 print("\nAI Agent is ready!")
@@ -587,11 +830,16 @@ print("- Get All Memories")
 print("- Web Search")
 print("- Fetch Webpage")
 
+print("\nSpecial commands:")
+print("- /history  → Show recent conversation")
+print("- /clear    → Clear short-term conversation")
+print("- exit      → Stop the agent")
+
 print("\nType 'exit' to stop.\n")
 
 
 # ============================================================
-# 11. Interactive Loop
+# 16. Interactive Loop
 # ============================================================
 
 while True:
@@ -603,6 +851,7 @@ while True:
     # --------------------------------------------------------
 
     if not user_message.strip():
+
         continue
 
     # --------------------------------------------------------
@@ -611,9 +860,31 @@ while True:
 
     if user_message.lower() == "exit":
 
-        print("Agent: Goodbye! 👋")
+        print(
+            "Agent: Goodbye! 👋"
+        )
 
         break
+
+    # --------------------------------------------------------
+    # Show history
+    # --------------------------------------------------------
+
+    if user_message.lower() == "/history":
+
+        show_conversation_history()
+
+        continue
+
+    # --------------------------------------------------------
+    # Clear history
+    # --------------------------------------------------------
+
+    if user_message.lower() == "/clear":
+
+        clear_conversation_history()
+
+        continue
 
     # --------------------------------------------------------
     # Run agent
